@@ -7,12 +7,15 @@
 global class CrossOrgDataSourceConnection extends DataSource.Connection {
     private RestClient restClient;
     private string remoteSObject = 'Lead';
+    private  List<String> customFieldNames = new List<String>{'Created_by__c', 'Last_Modified_by__c'};
     private  List<String> fieldNames = new List<String>{'AnnualRevenue', 'Company', 'CompanyDunsNumber', 
-             'Jigsaw', 'Description', 'Email', 'Fax',  'MobilePhone', 'FirstName', 'LastName',
-             'Name', 'NumberOfEmployees', 'Phone', 'Status', 'Title', 'Website'
+             'Jigsaw', 'Description', 'Email', 'Fax', 'Industry', 'LeadSource', 'MobilePhone', 'FirstName', 'LastName',
+             'Name', 'NumberOfEmployees', 'Phone', 'Rating', 'Status', 'Title', 'Website',
+             'Street', 'City', 'State', 'PostalCode', 'Country',
+             'Created_by__c', 'Last_Modified_by__c'
         }; 
-        /*'DoNotCall', 'HasOptedOutOfEmail', 'HasOptedOutOfFax', 'Address', 'CleanStatus', 'Industry', 
-        'LeadSource', 'Salutation',  'Rating',
+        /*'DoNotCall', 'HasOptedOutOfEmail', 'HasOptedOutOfFax', 'CleanStatus', 
+         'Salutation',  
         */
         
     global CrossOrgDataSourceConnection(DataSource.ConnectionParams connectionParams) {
@@ -31,31 +34,44 @@ global class CrossOrgDataSourceConnection extends DataSource.Connection {
         columns = new List<DataSource.Column>();
         columns.add(DataSource.Column.text('ExternalId', 255));
         columns.add(DataSource.Column.url('DisplayUrl'));
-        //columns.add(DataSource.Column.text('Address', 255));
-        columns.add(DataSource.Column.number('AnnualRevenue', 18, 0));
-        //columns.add(DataSource.Column.text('CleanStatus'));
+        ////columns.add(DataSource.Column.lookup('LeadOwner'));
+        columns.add(DataSource.Column.text('Name', 255));
+        columns.add(DataSource.Column.text('FirstName', 'First Name', 40));
+        columns.add(DataSource.Column.text('LastName', 'Last Name', 80));
         columns.add(DataSource.Column.text('Company', 255));
+        columns.add(DataSource.Column.text('Title', 128));
+        columns.add(DataSource.Column.text('LeadSource', 'Lead Source', 255));
+        //columns.add(DataSource.Column.lookup('Campaign'));
+        columns.add(DataSource.Column.text('Industry'));
+        columns.add(DataSource.Column.number('AnnualRevenue', 18, 0));
+        
+        columns.add(DataSource.Column.text('Phone'));
+        columns.add(DataSource.Column.text('MobilePhone', 'Mobile', 20));
+        columns.add(DataSource.Column.text('Fax'));
+        columns.add(DataSource.Column.text('Email'));
+        columns.add(DataSource.Column.url('Website', 255));
+        columns.add(DataSource.Column.text('Status', 'Lead Status', 255));
+        columns.add(DataSource.Column.text('Rating'));
+        columns.add(DataSource.Column.number('NumberOfEmployees', 8,0));
+        
+        columns.add(DataSource.Column.text('Street'));
+        columns.add(DataSource.Column.text('City'));
+        columns.add(DataSource.Column.text('State', 'State/Province', 255));
+        columns.add(DataSource.Column.text('PostalCode', 'Zip/Postal Code', 255));
+        columns.add(DataSource.Column.text('Country'));
+        
+        columns.add(DataSource.Column.textarea('Description'));
+        
+        columns.add(DataSource.Column.text('Created_by', 'Created by', 60));
+        columns.add(DataSource.Column.text('Last_Modified_by', 'Last Modified by', 60));
+        
+        //columns.add(DataSource.Column.text('CleanStatus'));
         columns.add(DataSource.Column.text('CompanyDunsNumber', 9));
         columns.add(DataSource.Column.text('Jigsaw', 20));
-        columns.add(DataSource.Column.text('Description', 4096));
         //columns.add(DataSource.Column.boolean('DoNotCall'));
-        columns.add(DataSource.Column.text('Email'));
         //columns.add(DataSource.Column.boolean('HasOptedOutOfEmail'));
-        columns.add(DataSource.Column.text('Fax'));
         //columns.add(DataSource.Column.boolean('HasOptedOutOfFax'));
-        //columns.add(DataSource.Column.text('Industry'));
-        //columns.add(DataSource.Column.text('LeadSource'));
-        columns.add(DataSource.Column.text('Name', 255));
-        columns.add(DataSource.Column.text('Status'));
-        columns.add(DataSource.Column.text('MobilePhone'));
-        columns.add(DataSource.Column.text('FirstName', 40));
-        columns.add(DataSource.Column.text('LastName', 80));
         //columns.add(DataSource.Column.text('Salutation'));
-        columns.add(DataSource.Column.number('NumberOfEmployees', 8,0));
-        columns.add(DataSource.Column.text('Phone'));
-        //columns.add(DataSource.Column.text('Rating'));
-        columns.add(DataSource.Column.text('Title', 128));
-        columns.add(DataSource.Column.url('Website', 255));
         tables.add(DataSource.Table.get('xLead', 'Name', columns));
         return tables;
     }
@@ -127,10 +143,21 @@ global class CrossOrgDataSourceConnection extends DataSource.Connection {
                     continue;
                 } else if (key.equals('Name')) {
                     continue;
+                } else if (key.equals('Created_by')) {
+                    continue;
+                } else if (key.equals('Last_Modified_by')) {
+                    continue;
                 } else {
                     updatedRows.put(key, row.get(key));
+                    System.debug('key = ' + key);
+                    System.debug('row = ' + row.get(key));
                 }
             }
+            updatedRows.put('Last_Modified_by__c', UserInfo.getUserName());
+            updatedRows.put('Created_by__c', UserInfo.getUserName());
+            System.Debug('Last modified by= ' + UserInfo.getUserName());
+            System.Debug('Created by = ' + UserInfo.getUserName());
+            
             String jsonRecord = (String)JSON.serialize(updatedRows);
             try {
                 if (id != null) {
@@ -139,7 +166,8 @@ global class CrossOrgDataSourceConnection extends DataSource.Connection {
                     String rawResponse = restClient.post('/sobjects/Lead/', jsonRecord);
                     Map<String,Object> response = (Map<String,Object>)JSON.deserializeUntyped(rawResponse);
                     id = (String)response.get('id');
-                    throwException(rawResponse);
+                    if(response.get('success') == true) system.debug('Success');
+                    else throwException(rawResponse);
                 }
                 results.add(DataSource.UpsertResult.success(id));
             } catch (DataSource.DataSourceException e) {
@@ -196,6 +224,9 @@ global class CrossOrgDataSourceConnection extends DataSource.Connection {
             //row.put('Description', queryResultRow.get('Description'));
             for(String fieldName : fieldNames){
                 row.put(fieldName, queryResultRow.get(fieldName));
+            }
+            for(String customFieldName : customFieldNames){
+                row.put(customFieldName.substring(0, customFieldName.length()-3), queryResultRow.get(customFieldName));
             }
             row.put('ExternalId', queryResultRow.get('Id'));
             row.put('DisplayUrl', URL.getSalesforceBaseUrl().toExternalForm() + '/' + queryResultRow.get('Id'));
