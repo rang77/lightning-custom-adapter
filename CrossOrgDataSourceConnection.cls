@@ -7,10 +7,14 @@
 global class CrossOrgDataSourceConnection extends DataSource.Connection {
     private RestClient restClient;
     private string remoteSObject = 'Lead';
-    private  List<String> fieldNames = new List<String>{'Name', 'AnnualRevenue', 'Company', 'CompanyDunsNumber', 'Jigsaw', 'Description', 'Email', 'Fax',  'MobilePhone', 'FirstName', 'LastName',
-             'NumberOfEmployees', 'Phone', 'Title', 'Website'
-        }; //'DoNotCall', 'HasOptedOutOfEmail', 'HasOptedOutOfFax', 'Address', 'CleanStatus', 'Industry', 'LeadSource', 'Status', 'Salutation',  'Rating',
-
+    private  List<String> fieldNames = new List<String>{'AnnualRevenue', 'Company', 'CompanyDunsNumber', 
+             'Jigsaw', 'Description', 'Email', 'Fax',  'MobilePhone', 'FirstName', 'LastName',
+             'Name', 'NumberOfEmployees', 'Phone', 'Status', 'Title', 'Website'
+        }; 
+        /*'DoNotCall', 'HasOptedOutOfEmail', 'HasOptedOutOfFax', 'Address', 'CleanStatus', 'Industry', 
+        'LeadSource', 'Salutation',  'Rating',
+        */
+        
     global CrossOrgDataSourceConnection(DataSource.ConnectionParams connectionParams) {
         this.restClient = new RestClient(connectionParams);
     }
@@ -18,7 +22,7 @@ global class CrossOrgDataSourceConnection extends DataSource.Connection {
     /**
      *   Called when external object needs to get a list of
      *   schema from external data source, for example when the
-     *   administrator clicks ‚ÄúValidate and Sync‚Äù in the user
+     *   administrator clicks ìValidate and Syncî in the user
      *   interface for the external data source.
      **/
     override global List<DataSource.Table> sync() {
@@ -42,7 +46,7 @@ global class CrossOrgDataSourceConnection extends DataSource.Connection {
         //columns.add(DataSource.Column.text('Industry'));
         //columns.add(DataSource.Column.text('LeadSource'));
         columns.add(DataSource.Column.text('Name', 255));
-        //columns.add(DataSource.Column.text('Status'));
+        columns.add(DataSource.Column.text('Status'));
         columns.add(DataSource.Column.text('MobilePhone'));
         columns.add(DataSource.Column.text('FirstName', 40));
         columns.add(DataSource.Column.text('LastName', 80));
@@ -53,14 +57,13 @@ global class CrossOrgDataSourceConnection extends DataSource.Connection {
         columns.add(DataSource.Column.text('Title', 128));
         columns.add(DataSource.Column.url('Website', 255));
         tables.add(DataSource.Table.get('xLead', 'Name', columns));
-        system.Debug('passed Sync');
         return tables;
     }
 
     /**
      *   Called to query and get results from the external
      *   system for SOQL queries, list views, and detail pages
-     *   for an external object that‚Äôs associated with the
+     *   for an external object thatís associated with the
      *   external data source.
      *
      *   The QueryContext argument represents the query to run
@@ -121,6 +124,8 @@ global class CrossOrgDataSourceConnection extends DataSource.Connection {
                 if (key.equals('ExternalId')) {
                     continue;
                 } else if (key.equals('DisplayUrl')) {
+                    continue;
+                } else if (key.equals('Name')) {
                     continue;
                 } else {
                     updatedRows.put(key, row.get(key));
@@ -196,7 +201,6 @@ global class CrossOrgDataSourceConnection extends DataSource.Connection {
             row.put('DisplayUrl', URL.getSalesforceBaseUrl().toExternalForm() + '/' + queryResultRow.get('Id'));
             rows.add(row);
         }
-        System.Debug('Parsed Query Response');
         return DataSource.TableResult.get(true, null, c.tableSelection.tableSelected, rows, totalSize, queryMoreToken);
     }
 
@@ -220,9 +224,6 @@ global class CrossOrgDataSourceConnection extends DataSource.Connection {
             basequery = baseQuery + ',' + fieldName; 
         }
         basequery = baseQuery + ' FROM ' + remoteSObject;
-        
-        System.debug('basequery = ' + basequery);
-        
         string filter = getSoqlFilter('', c.tableSelection.filter);
         if (filter.length() > 0) return baseQuery + ' WHERE ' + filter;
         return baseQuery;
